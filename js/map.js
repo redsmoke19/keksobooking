@@ -42,8 +42,8 @@ function getRandomElement(array) {
 function getRandomArray(array) {
   var randomArray = [];
   var arrayCopies = array.slice();
-  var getRandomLength = getRandomNumber(1, arrayCopies.length)
-  for (var i = 0; i < getRandomLength; i++) {
+  var randomLength = getRandomNumber(1, arrayCopies.length)
+  for (var i = 0; i < randomLength; i++) {
     var randomElementIndex = getRandomNumber(0, arrayCopies.length - 1);
     randomArray.push(arrayCopies[randomElementIndex]);
     arrayCopies.splice(randomElementIndex, 1);
@@ -82,13 +82,13 @@ function getObjectArray() {
         title: USER__TITLE[i],
         address: x + ', ' + y,
         price: getRandomNumber(1000, 1000000),
-        type: getRandomElement(Object.keys(TYPES)),
+        type: TYPES[getRandomElement(Object.keys(TYPES))],
         rooms: getRandomNumber(1, 5),
         guest: getRandomNumber(1, 10),
         checkin: getRandomElement(USER_CHECKIN),
         checkout: getRandomElement(USER_CHECKOUT),
         features: getRandomArray(FEATURES),
-        description: '',
+        description: 'Великолепная квартира-студия в центре Токио. Подходит как туристам, так и бизнесменам. Квартира полностью укомплектована и недавно отремонтирована.',
         photos: getShuffleArray(USER_PHOTO),
       },
       location: {
@@ -126,3 +126,62 @@ for (var k = 0; k < objectList.length; k++) {
 
 // Записываю из фрагмента элементы в спикок всех пинов на карте (сам тег fragment после этой операции опусташается)
 pinList.appendChild(fragment);
+
+// Функция генерации кароточки объекта на основании скопированного шаблона
+function createCardElement (object) {
+  var cardElement = mapTemplate.cloneNode(true);
+  cardElement.querySelector('.popup__title').textContent = object.offer.title;
+  cardElement.querySelector('.popup__text--address').textContent = object.offer.address;
+  cardElement.querySelector('.popup__text--price').textContent = object.offer.price + ' Руб/ночь';
+  cardElement.querySelector('.popup__type').textContent = object.offer.type;
+  cardElement.querySelector('.popup__text--capacity').textContent = object.offer.rooms + ((objectList[0].offer.rooms === 1) ? ' комната для ' : (objectList[0].offer.rooms === 5 ? ' комнат для ' : ' комнаты для ')) + objectList[0].offer.guest + (object.offer.guest === 1 ? ' гостя' : ' гостей');
+  cardElement.querySelector('.popup__text--time').textContent = 'Заезд после ' + object.offer.checkin + ', выезд до ' + object.offer.checkout;
+
+  // Из массива features который содержит названия доступных удобств, создаем новые элементы li с классом удобств равному i-у элементу массива и записываем эти элементы в родительский элемент .popup__features
+  // featuresList.innerHTML = '';
+  // for (var i = 0; i < object.offer.features.length; i++) {
+  //   var featureElement = '<li class="popup__feature popup__feature--' + object.offer.features[i] + '"></li>';
+  //   featuresList.insertAdjacentHTML('afterbegin', featureElement);
+  // }
+  var featuresList = cardElement.querySelector('.popup__features');
+  var featuresClone = featuresList.cloneNode(false);
+  featuresList.remove();
+  for (var i = 0; i < object.offer.features.length; i++) {
+    var featuresElement = document.createElement('li');
+    featuresElement.classList.add('popup__feature');
+    featuresElement.classList.add('popup__feature--' + object.offer.features[i]);
+    featuresClone.append(featuresElement);
+  }
+  cardElement.querySelector('.popup__description').before(featuresClone);
+
+  cardElement.querySelector('.popup__description').textContent = object.offer.description;
+  cardElement.querySelector('.popup__avatar').src = object.author.avatar;
+
+  // Тоже самое делаем с коллекцией фотографий. Сначала ищем класс который является контейнером фотографий, потом клонируем не глубоким методом (false) этот элемент-родитель, после этого удаляем главный элемент и оставляем только клон его, внутри цикла создаем новый элемент, добавляем ему класс, высоту, ширину и src с alt, после чего с помощью метода append отправляем элемент в конец родительского элемента photosClone, и после чего вставляем элемент photosClone после элемента с классом .popup__description;
+  var photosList = cardElement.querySelector('.popup__photos')
+  var photosClone = photosList.cloneNode(false);
+  photosList.remove();
+  for (var j = 0; j < object.offer.photos.length; j++) {
+    var photoElement = document.createElement('img');
+    photoElement.classList.add('popup__photo');
+    photoElement.width = '45';
+    photoElement.height = '40';
+    photoElement.alt = 'Фотография жилья';
+    photoElement.src = object.offer.photos[j];
+    photosClone.append(photoElement);
+  }
+  cardElement.querySelector('.popup__description').after(photosClone);
+
+  // photosList.innerHTML = '';
+  // for (var j = 0; j < object.offer.photos.length; j++) {
+  //   var photosElement = '<img src="' + object.offer.photos[j] + '" class="popup__photo" width="45" height="40" alt="Фотография жилья">';
+  //   photosList.insertAdjacentHTML('afterbegin', photosElement);
+  // }
+
+  return cardElement;
+}
+
+fragment.append(createCardElement(objectList[0]));
+
+map.children[1].before(fragment);
+
