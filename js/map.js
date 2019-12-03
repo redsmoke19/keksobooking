@@ -1,5 +1,15 @@
 'use strict';
 
+// Глобальные переменные
+var fragment = document.createDocumentFragment();
+
+// Переменные поиска элементов
+var map = document.querySelector('.map');
+var template = document.querySelector('template').content;
+var pinList = document.querySelector('.map__pins');
+var form = document.querySelector('.ad-form');
+var mainPin = document.querySelector('.map__pin--main');
+
 // Статические переменные
 var USER__TITLE = ['Большая уютная квартира', 'Маленькая неуютная квартира', 'Огромный прекрасный дворец', 'Маленький ужасный дворец', 'Красивый гостевой домик', 'Некрасивый негостеприимный домик', 'Уютное бунгало далеко от моря', 'Неуютное бунгало по колено в воде'];
 var USER_CHECKIN = ['12:00', '13:00', '14:00'];
@@ -16,15 +26,13 @@ var PIN_SIZE = {
   x: 50,
   y: 70
 };
-
-// Глобальные переменные
-var fragment = document.createDocumentFragment();
-
-// Переменные поиска элементов
-var map = document.querySelector('.map');
-var template = document.querySelector('template').content;
-var pinList = document.querySelector('.map__pins');
-
+var MAIN_PIN_SIZE = {
+  width: mainPin.clientWidth,
+  height: mainPin.clientHeight
+};
+var ADDS_LENGTH = 8;
+var ESC_KEYCODE = 27;
+var ENTER_KEYCORE = 13;
 
 // Функция генерации случайного числа
 function getRandomNumber(min, max) {
@@ -67,11 +75,12 @@ function getShuffleArray(array) {
 // Получаем ширину окна в которм находится пользователь
 var mapWidth = document.querySelector('.map__pins').getBoundingClientRect();
 var clientWidth = mapWidth.width - 75;
+mainPin.style.left = (mapWidth.width / 2 - MAIN_PIN_SIZE.width / 2) + 'px';
 
 // Функция создания массива объекта любой длины (длина задается в цикле <= n)
 function getObjectArray() {
   var objectArray = [];
-  for (var i = 0; i < 8; i++) {
+  for (var i = 0; i < ADDS_LENGTH; i++) {
     var x = getRandomNumber(0, clientWidth);
     var y = getRandomNumber(130, 560);
     var objectItem = {
@@ -102,9 +111,6 @@ function getObjectArray() {
 }
 var objectList = getObjectArray();
 
-// Временно удаляем класс, который блакирует карту
-map.classList.remove('map--faded');
-
 // В шаблоне ищу элементы необходимые для дальнейшего копирования
 var mapTemplate = template.querySelector('.map__card');
 var pinTemplate = template.querySelector('.map__pin');
@@ -119,16 +125,20 @@ function createPinElement(arr) {
   return pinElement;
 }
 
-// Запись созданных значков на карте во fragment
-for (var k = 0; k < objectList.length; k++) {
-  fragment.appendChild(createPinElement(objectList[k]));
+function getPinList() {
+  var pinArray = [];
+  // Запись созданных значков на карте во fragment
+  for (var k = 0; k < ADDS_LENGTH; k++) {
+    pinArray.push(createPinElement(objectList[k]));
+  }
+  return pinArray;
 }
 
-// Записываю из фрагмента элементы в спикок всех пинов на карте (сам тег fragment после этой операции опусташается)
-pinList.appendChild(fragment);
+var pins = getPinList();
+console.log(pins);
 
 // Функция генерации кароточки объекта на основании скопированного шаблона
-function createCardElement (object) {
+function createCardElement(object) {
   var cardElement = mapTemplate.cloneNode(true);
   cardElement.querySelector('.popup__title').textContent = object.offer.title;
   cardElement.querySelector('.popup__text--address').textContent = object.offer.address;
@@ -136,6 +146,8 @@ function createCardElement (object) {
   cardElement.querySelector('.popup__type').textContent = object.offer.type;
   cardElement.querySelector('.popup__text--capacity').textContent = object.offer.rooms + ((objectList[0].offer.rooms === 1) ? ' комната для ' : (objectList[0].offer.rooms === 5 ? ' комнат для ' : ' комнаты для ')) + objectList[0].offer.guest + (object.offer.guest === 1 ? ' гостя' : ' гостей');
   cardElement.querySelector('.popup__text--time').textContent = 'Заезд после ' + object.offer.checkin + ', выезд до ' + object.offer.checkout;
+  cardElement.querySelector('.popup__description').textContent = object.offer.description;
+  cardElement.querySelector('.popup__avatar').src = object.author.avatar;
 
   // Из массива features который содержит названия доступных удобств, создаем новые элементы li с классом удобств равному i-у элементу массива и записываем эти элементы в родительский элемент .popup__features
   // featuresList.innerHTML = '';
@@ -154,9 +166,6 @@ function createCardElement (object) {
   }
   cardElement.querySelector('.popup__description').before(featuresClone);
 
-  cardElement.querySelector('.popup__description').textContent = object.offer.description;
-  cardElement.querySelector('.popup__avatar').src = object.author.avatar;
-
   // Тоже самое делаем с коллекцией фотографий. Сначала ищем класс который является контейнером фотографий, потом клонируем не глубоким методом (false) этот элемент-родитель, после этого удаляем главный элемент и оставляем только клон его, внутри цикла создаем новый элемент, добавляем ему класс, высоту, ширину и src с alt, после чего с помощью метода append отправляем элемент в конец родительского элемента photosClone, и после чего вставляем элемент photosClone после элемента с классом .popup__description;
   var photosList = cardElement.querySelector('.popup__photos')
   var photosClone = photosList.cloneNode(false);
@@ -171,17 +180,81 @@ function createCardElement (object) {
     photosClone.append(photoElement);
   }
   cardElement.querySelector('.popup__description').after(photosClone);
-
-  // photosList.innerHTML = '';
-  // for (var j = 0; j < object.offer.photos.length; j++) {
-  //   var photosElement = '<img src="' + object.offer.photos[j] + '" class="popup__photo" width="45" height="40" alt="Фотография жилья">';
-  //   photosList.insertAdjacentHTML('afterbegin', photosElement);
-  // }
-
   return cardElement;
 }
 
-fragment.append(createCardElement(objectList[0]));
+// По умолчанию переводим поля формы в состояние disabled, т.к. при загрузки страницы они должны быть неактивны
+function disableFieldset(add) {
+  var formFieldset = form.querySelectorAll('fieldset');
+  for (var i = 0; i < formFieldset.length; i++) {
+    if (add) {
+      formFieldset[i].setAttribute('disabled', '');
+    } else {
+      formFieldset[i].removeAttribute('disabled');
+    }
+  }
+}
 
-map.children[1].before(fragment);
+var address = document.querySelector('#address');
+address.value = getAddressValue();
 
+function getAddressValue() {
+  var addressValue = parseInt(mainPin.style.left) + ',' + parseInt(mainPin.style.top);
+  return addressValue;
+}
+
+function mainPinMouseUpHandler() {
+  map.classList.remove('map--faded');
+  form.classList.remove('ad-form--disabled');
+  disableFieldset(false);
+  address.value = getAddressValue();
+  mainPin.style.zIndex = '100';
+  for (var i = 0; i < pins.length; i++) {
+    fragment.append(pins[i]);
+  }
+  pinList.append(fragment);
+  pinList.addEventListener('click', pinClickHandler);
+  mainPin.removeEventListener('mouseup', mainPinMouseUpHandler);
+}
+
+var popup;
+var pin;
+var currentTarget;
+
+function pinClickHandler(evt) {
+  pin = evt.target.closest('.map__pin');
+  if (!pin) {
+    return;
+  }
+  if (pin.className === 'map__pin') {
+    if (currentTarget) {
+      currentTarget.classList.remove('map__pin--active');
+      popup.remove();
+    }
+    pin.classList.add('map__pin--active');
+    currentTarget = pin;
+    popup = createCardElement(objectList[pins.indexOf(currentTarget)]);
+    map.children[1].before(popup);
+    var popupClose = map.querySelector('.popup__close');
+    popupClose.addEventListener('click', closePopupClickHandler);
+    document.addEventListener('keydown', popupEscHandler);
+  }
+  if (evt.target.closest('.map__pin--main')) {
+    closePopupClickHandler();
+  }
+}
+
+function closePopupClickHandler() {
+  currentTarget.classList.remove('map__pin--active');
+  popup.classList.add('hidden');
+  document.removeEventListener('keydown', popupEscHandler);
+}
+
+function popupEscHandler(evt) {
+  if (evt.keyCode === ESC_KEYCODE) {
+    closePopupClickHandler();
+  }
+}
+
+mainPin.addEventListener('mouseup', mainPinMouseUpHandler);
+disableFieldset(true);
