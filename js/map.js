@@ -38,7 +38,7 @@ var MIN_PRICE = {
   'flat': 1000,
   'house': 5000,
   'palace': 10000
-}
+};
 
 // Функция генерации случайного числа
 function getRandomNumber(min, max) {
@@ -56,7 +56,7 @@ function getRandomElement(array) {
 function getRandomArray(array) {
   var randomArray = [];
   var arrayCopies = array.slice();
-  var randomLength = getRandomNumber(1, arrayCopies.length)
+  var randomLength = getRandomNumber(1, arrayCopies.length);
   for (var i = 0; i < randomLength; i++) {
     var randomElementIndex = getRandomNumber(0, arrayCopies.length - 1);
     randomArray.push(arrayCopies[randomElementIndex]);
@@ -172,7 +172,7 @@ function createCardElement(object) {
   cardElement.querySelector('.popup__description').before(featuresClone);
 
   // Тоже самое делаем с коллекцией фотографий. Сначала ищем класс который является контейнером фотографий, потом клонируем не глубоким методом (false) этот элемент-родитель, после этого удаляем главный элемент и оставляем только клон его, внутри цикла создаем новый элемент, добавляем ему класс, высоту, ширину и src с alt, после чего с помощью метода append отправляем элемент в конец родительского элемента photosClone, и после чего вставляем элемент photosClone после элемента с классом .popup__description;
-  var photosList = cardElement.querySelector('.popup__photos')
+  var photosList = cardElement.querySelector('.popup__photos');
   var photosClone = photosList.cloneNode(false);
   photosList.remove();
   for (var j = 0; j < object.offer.photos.length; j++) {
@@ -419,7 +419,7 @@ function checkScript() {
       capacityValue[j].disabled = (currentValue === '0') ? (capacityValue[j].value !== '0') : (capacityValue[j].value > currentValue || capacityValue[j].value === '0');
     }
   }
-  getSyncRooms()
+  getSyncRooms();
   form.addEventListener('submit', submitButtonHandler, false);
   form.addEventListener('blur', fieldBlurHandler, true);
   selectType.addEventListener('change', getPriceType);
