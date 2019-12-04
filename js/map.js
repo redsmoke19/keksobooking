@@ -33,6 +33,12 @@ var MAIN_PIN_SIZE = {
 var ADDS_LENGTH = 8;
 var ESC_KEYCODE = 27;
 var ENTER_KEYCORE = 13;
+var MIN_PRICE = {
+  'bungalo': 0,
+  'flat': 1000,
+  'house': 5000,
+  'palace': 10000
+}
 
 // Функция генерации случайного числа
 function getRandomNumber(min, max) {
@@ -125,9 +131,9 @@ function createPinElement(arr) {
   return pinElement;
 }
 
+// Функция генерации массива пинов длины равной ADDS_LENGTH
 function getPinList() {
   var pinArray = [];
-  // Запись созданных значков на карте во fragment
   for (var k = 0; k < ADDS_LENGTH; k++) {
     pinArray.push(createPinElement(objectList[k]));
   }
@@ -135,7 +141,6 @@ function getPinList() {
 }
 
 var pins = getPinList();
-console.log(pins);
 
 // Функция генерации кароточки объекта на основании скопированного шаблона
 function createCardElement(object) {
@@ -183,30 +188,35 @@ function createCardElement(object) {
   return cardElement;
 }
 
-// По умолчанию переводим поля формы в состояние disabled, т.к. при загрузки страницы они должны быть неактивны
-function disableFieldset(add) {
-  var formFieldset = form.querySelectorAll('fieldset');
-  for (var i = 0; i < formFieldset.length; i++) {
-    if (add) {
-      formFieldset[i].setAttribute('disabled', '');
-    } else {
-      formFieldset[i].removeAttribute('disabled');
-    }
-  }
-}
+// Загрузка пинов и карточек объявлений
 
+var popup;
+var pin;
+var currentTarget;
+
+// Задаем начальное значения координат для поля формы с адресом
 var address = document.querySelector('#address');
 address.value = getAddressValue();
 
+// По умолчанию переводим поля формы в состояние disabled, т.к. при загрузки страницы они должны быть неактивны
+function disableFieldset() {
+  var formFieldset = form.querySelectorAll('fieldset');
+  for (var i = 0; i < formFieldset.length; i++) {
+    formFieldset[i].disabled = !formFieldset[i].disabled;
+  }
+}
+
+// Получаем значения координат главного пина на карте по значению его места на карте left and top
 function getAddressValue() {
   var addressValue = parseInt(mainPin.style.left) + ',' + parseInt(mainPin.style.top);
   return addressValue;
 }
 
+// При нажатии на гланый пин страница переходит в активный режим, удаляя классы блокировки, отключает блокировку формы, записывает во фрагмент каждый элемент массива pins и вставляет их на страницу, добалвяет слушателя делегированного на всю карту pinList
 function mainPinMouseUpHandler() {
   map.classList.remove('map--faded');
   form.classList.remove('ad-form--disabled');
-  disableFieldset(false);
+  disableFieldset();
   address.value = getAddressValue();
   mainPin.style.zIndex = '100';
   for (var i = 0; i < pins.length; i++) {
@@ -215,46 +225,211 @@ function mainPinMouseUpHandler() {
   pinList.append(fragment);
   pinList.addEventListener('click', pinClickHandler);
   mainPin.removeEventListener('mouseup', mainPinMouseUpHandler);
+  mainPin.removeEventListener('keydown', mainPinEnterUpHandler);
 }
 
-var popup;
-var pin;
-var currentTarget;
-
+// Функция показа карточки объявления при клике на пин
 function pinClickHandler(evt) {
+  // Создаем элемент pin и присваиваем ему значение метки на карте (пина)
   pin = evt.target.closest('.map__pin');
+  // Если событие произошло не на любом из пинов, то выходим из функции
   if (!pin) {
     return;
   }
-  if (pin.className === 'map__pin') {
+  if (pin !== mainPin) {
+    // Удаляем подсветку с предыдущего элемента пина, и так же удаляем соответсвующий ему элемент карточки товара
     if (currentTarget) {
       currentTarget.classList.remove('map__pin--active');
       popup.remove();
     }
+    // Добавляем подсветку активного элемента пина на карте
     pin.classList.add('map__pin--active');
+    // Переменной currentTarget присваиваем значение элемента пин, который находится в активном состоянии
     currentTarget = pin;
+    // По индексу активного элемента в массиве pins создает соответствующий элемент карточки товара и размещает его на карте
     popup = createCardElement(objectList[pins.indexOf(currentTarget)]);
     map.children[1].before(popup);
+    // Ищет кнопку закрытия карточки объявления и при клике или esc закрывает ее
     var popupClose = map.querySelector('.popup__close');
     popupClose.addEventListener('click', closePopupClickHandler);
     document.addEventListener('keydown', popupEscHandler);
   }
-  if (evt.target.closest('.map__pin--main')) {
+  // Если клик произошел на главном пине, то закрывает карточку товара
+  if (popup && pin === mainPin) {
     closePopupClickHandler();
   }
 }
-
+// Функция закрытия попапа и удаления класса активного элемента, и так эе убирает обработчик с клавишы Esc
 function closePopupClickHandler() {
   currentTarget.classList.remove('map__pin--active');
   popup.classList.add('hidden');
   document.removeEventListener('keydown', popupEscHandler);
 }
-
+// Функция закрытия попапа по нажатию клавишы Esc
 function popupEscHandler(evt) {
   if (evt.keyCode === ESC_KEYCODE) {
     closePopupClickHandler();
   }
 }
-
+// Функция разблокировки нарты при нажатии на главный пин через Enter
+function mainPinEnterUpHandler(evt) {
+  if (evt.keyCode === ENTER_KEYCORE) {
+    mainPinMouseUpHandler();
+  }
+}
+// По умолчанию отключаем форму
+disableFieldset();
+// Добавляем обработчик событий на главный пин
 mainPin.addEventListener('mouseup', mainPinMouseUpHandler);
-disableFieldset(true);
+mainPin.addEventListener('keydown', mainPinEnterUpHandler);
+
+// Валидация формы
+
+function checkScript() {
+  var forms = document.querySelectorAll('.novalidate');
+  for (var i = 0; i < forms.length; i++) {
+    forms[i].setAttribute('novalidate', true);
+  }
+  // Находим в форме поле с именем type, timein, timeout это Select.
+  var selectType = form.type;
+  var selectTimein = form.timein;
+  var selectTimeout = form.timeout;
+  var selectRooms = form.rooms;
+  var selectCapacity = form.capacity;
+
+  function hasError(field) {
+    if (field.disabled || field.type === 'file' || field.type === 'reset' || field.type === 'submit' || field.type === 'button') {
+      return;
+    }
+    var validity = field.validity;
+    if (validity.valid) {
+      return;
+    }
+    if (validity.valueMissing) return 'Пожалуйста, заполните это поле. Оно обязательное';
+    if (validity.typeMismatch) {
+      if (field.type === 'email') return 'Пожалуйста, введите верное значение почты';
+      if (field.type === 'url') return 'Пожалуйста, введите правильный адрес ссылки';
+    }
+    if (validity.tooShort) return 'Длинна имени должна быть не менее ' + field.getAttribute('minLength') + ' символов. Вы ввели ' + field.value.length + ' символа.';
+    if (validity.tooLong) return 'Длинна имени должна быть не более ' + field.getAttribute('maxLength') + ' символов. Вы ввели ' + field.value.length + ' символа.';
+    if (validity.badInput) return 'Пожалуйста, введите число';
+    if (validity.stepMismatch) return 'Указано не верное значение';
+    if (validity.rangeOverflow) return 'Введенное значение слишком велико';
+    if (validity.rangeUnderflow) return 'Введенное значение слишком мало';
+    if (validity.patternMismatch) return 'неверный формат';
+    return 'Введенное значение не верно';
+  }
+
+  function showError(field, error) {
+    field.classList.add('error');
+    var id = field.id;
+    if (!id) return;
+    var message = field.form.querySelector('.error-message#error-for-' + id);
+    if (!message) {
+      message = document.createElement('div');
+      message.className = 'error-message';
+      message.id = 'error-for-' + id;
+      field.parentNode.insertBefore(message, field.nextSibling);
+    }
+    field.setAttribute('aria-describedby', 'error-for-' + id);
+    message.innerHTML = error;
+    message.style.display = 'block';
+    message.style.visibility = 'visible';
+  }
+
+  function removeError(field) {
+    field.classList.remove('error');
+    field.removeAttribute('aria-describedby');
+    var id = field.id;
+    if (!id) return;
+    var message = field.form.querySelector('.error-message#error-for-' + id + '');
+    if (!message) return;
+    message.innerHTML = '';
+    message.style.display = 'none';
+    message.style.visibility = 'hidden';
+  }
+
+  function fieldBlurHandler(evt) {
+    if (!evt.target.form.classList.contains('novalidate')) {
+      return;
+    }
+    var error = hasError(evt.target);
+    if (error) {
+      showError(evt.target, error);
+      return;
+    }
+    removeError(evt.target);
+  }
+
+  function submitButtonHandler(evt) {
+    if (!evt.target.classList.contains('novalidate')) {
+      return;
+    }
+    var fields = evt.target.elements;
+    var error;
+    var hasErrors;
+    for (var j = 0; j < fields.length; j++) {
+      error = hasError(fields[j]);
+      if (error) {
+        showError(fields[j], error);
+        if (!hasErrors) {
+          hasErrors = fields[j];
+        }
+      }
+    }
+    if (hasErrors) {
+      evt.preventDefault();
+      hasErrors.focus();
+    }
+  }
+
+  function getPriceType() {
+    var selectOption = selectType.options[selectType.selectedIndex];
+    var selectPrice = form.price;
+    // Соркащенный вариант
+    // selectPrice.placeholder = MIN_PRICE[selectOption.value];
+    // selectPrice.min = MIN_PRICE[selectOption.value];
+    if (selectOption.value === 'bungalo') {
+      selectPrice.placeholder = MIN_PRICE['bungalo'];
+      selectPrice.min = MIN_PRICE['bungalo'];
+    }
+    if (selectOption.value === 'flat') {
+      selectPrice.placeholder = MIN_PRICE['flat'];
+      selectPrice.min = MIN_PRICE['flat'];
+    }
+    if (selectOption.value === 'house') {
+      selectPrice.placeholder = MIN_PRICE['house'];
+      selectPrice.min = MIN_PRICE['house'];
+    }
+    if (selectOption.value === 'palace') {
+      selectPrice.placeholder = MIN_PRICE['palace'];
+      selectPrice.min = MIN_PRICE['palace'];
+    }
+  }
+
+  function getSyncTime(first, second) {
+    second.options[first.selectedIndex].selected = true;
+  }
+
+  function getSyncRooms() {
+    var capacityValue = selectCapacity.options;
+    selectCapacity.value = (selectRooms.value === '100') ? '0' : selectRooms.value;
+    var currentValue = selectCapacity.value;
+    for (var j = 0; j < capacityValue.length; j++) {
+      capacityValue[j].disabled = (currentValue === '0') ? (capacityValue[j].value !== '0') : (capacityValue[j].value > currentValue || capacityValue[j].value === '0');
+    }
+  }
+  getSyncRooms()
+  form.addEventListener('submit', submitButtonHandler, false);
+  form.addEventListener('blur', fieldBlurHandler, true);
+  selectType.addEventListener('change', getPriceType);
+  selectTimein.addEventListener('change', function () {
+    getSyncTime(selectTimein, selectTimeout);
+  });
+  selectTimeout.addEventListener('change', function () {
+    getSyncTime(selectTimeout, selectTimein);
+  });
+  selectRooms.addEventListener('change', getSyncRooms);
+}
+
+checkScript();
